@@ -40,7 +40,7 @@ context.on('head', function(user, x, y, z) {
   prevPos.head.y = pos.y;
   prevPos.head.z = pos.z;
 
-//  console.log('User ' + user + ': ' + Math.round(x) + ', ' + Math.round(y) + ', ' + Math.round(z));
+  console.log('User ' + user + ': ' + Math.round(x) + ', ' + Math.round(y) + ', ' + Math.round(z));
   if(peer) {
     sendPosition(HEAD, x, y, z);
   }

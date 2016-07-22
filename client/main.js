@@ -1,10 +1,10 @@
 /* jshint esnext: true */
 /* jshint asi: true */
 var renderer = new THREE.WebGLRenderer({antialias: true})
-var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 2000)
+var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 3000)
 var scene = new THREE.Scene()
 
-var SCALE_X = 10, SCALE_Y = 10, SCALE_Z = 10
+var SCALE_X = 8, SCALE_Y = 10, SCALE_Z = 8
 var OFF_X = 0, OFF_Y = 300, OFF_Z = 1500
 
 var HEAD = 1
@@ -18,10 +18,7 @@ function deg2rad(angle) {
 renderer.setPixelRatio(window.devicePixelRatio)
 renderer.setSize(window.innerWidth, window.innerHeight)
 
-document.body.appendChild(renderer.domElement)
-
 camera.position.set(0, 0, 500)
-
 var socket = new WebSocket(`ws://${window.location.hostname}:8080`)
 socket.binaryType = 'arraybuffer'
 socket.onmessage = function(evt) {
@@ -40,7 +37,6 @@ socket.onmessage = function(evt) {
     break
   }
 }
-
 /*
 var head = new THREE.Mesh(
   new THREE.BoxGeometry(100, 100, 100),
@@ -55,10 +51,36 @@ var right = new THREE.Mesh(
   new THREE.SphereGeometry(10, 32, 32),
   new THREE.MeshBasicMaterial({color: 0x00ff00, wireframe: true})
 )
-/*
-scene.add(left);
-scene.add(right);
-*/
+
+scene.add(left)
+scene.add(right)
+
+var sky = new THREE.Mesh(
+  new THREE.SphereGeometry(2000, 24, 24),
+  new THREE.MeshBasicMaterial({
+    map: new THREE.TextureLoader().load('skybox.jpg'),
+    side: THREE.BackSide
+  })
+)
+
+scene.add(sky)
+
+var floorTex = new THREE.MeshBasicMaterial({map: new THREE.TextureLoader().load("floor.jpg", null, function() {
+  floorTex.map.wrapS = floorTex.map.wrapT = THREE.RepeatWrapping
+  floorTex.map.repeat.set(50, 50)
+  floorTex.map.needsUpdate = true
+  floorTex.needsUpdate = true
+})})
+
+var floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(4000, 4000),
+  floorTex
+);
+
+scene.add(floor)
+floor.rotation.x = -Math.PI/2;
+floor.position.y = -50;
+
 var mtlLoader = new THREE.MTLLoader()
 mtlLoader.setPath('model/')
 mtlLoader.load('model.mtl', function(materials) {
@@ -68,8 +90,8 @@ mtlLoader.load('model.mtl', function(materials) {
 	objLoader.setPath('model/')
 	objLoader.load('model.obj', function(object) {
     object.scale.set(100, 100, 100)
-		object.position.set(10, -100, 850)
-		scene.add(object)
+		object.position.set(10, -150, 850)
+//		scene.add(object)
     console.log('LOADED')
     window.model = object
 	})
@@ -78,32 +100,36 @@ mtlLoader.load('model.mtl', function(materials) {
 var ambient = new THREE.AmbientLight( 0xffffff )
 scene.add(ambient)
 
+var controls = new THREE.VRControls(camera)
+var effect = new THREE.VREffect(renderer)
+
+effect.setSize(window.innerWidth, window.innerHeight)
+
+window.addEventListener('resize', function() {
+  effect.setSize(window.innerWidth, window.innerHeight)
+})
+
 function render() {
-  renderer.render(scene, camera)
+  effect.render(scene, camera)
+  controls.update()
   requestAnimationFrame(render)
+
 }
 
-render()
+function start() {
 
-window.addEventListener("deviceorientation", function(evt) {
-  var heading = evt.alpha,
-        pitch   = evt.gamma
+  screen.lockOrientationUniversal = screen.lockOrientation || screen.mozLockOrientation || screen.msLockOrientation
 
-    // Correcting the sensors being "clever"
-    if(Math.abs(evt.beta) > 45) {
-      heading += 90
-    } else {
-      heading -= 90
-    }
+  if (screen.lockOrientationUniversal) {
+    screen.lockOrientationUniversal('landscape')
+  } else if(screen.orientation && screen.orientation.lock) {
+    screen.orientation.lock('landscape').then(function() {
+    }, function() { console.log('no lock') })
+  }
 
-    if(pitch < 0) {
-      pitch = -90 - pitch
-    } else {
-      pitch =  90 - pitch
-    }
+  document.body.appendChild(renderer.domElement)
+  effect.requestPresent()
+  render()
+}
 
-    if(heading < 0) heading = 360 + heading
-
-    camera.rotation.set(0, deg2rad(heading), 0)
-    evt.preventDefault()
-});
+document.querySelector('button').addEventListener('click', start)
